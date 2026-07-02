@@ -78,7 +78,7 @@ jobs:
           export gn_flags='cc="clang-12" cxx="clang++-12"'
           skia_use_vulkan=true
         fi
-        gn gen out/${{ matrix.mode }}-${{ matrix.arch }} --args="is_debug=$is_debug is_official_build=$is_official skia_use_vulkan=$skia_use_vulkan skia_use_system_expat=false skia_use_system_icu=false skia_use_system_libjpeg_turbo=false skia_use_system_libpng=false skia_use_system_libwebp=false skia_use_system_zlib=false skia_use_freetype=true skia_use_harfbuzz=true skia_pdf_subset_harfbuzz=true skia_use_system_freetype2=false skia_use_system_harfbuzz=false target_cpu=\"${{ matrix.arch }}\" $gn_flags"
+        gn gen out/${{ matrix.mode }}-${{ matrix.arch }} --args="is_debug=$is_debug is_official_build=$is_official skia_use_vulkan=$skia_use_vulkan skia_enable_ganesh=false skia_enable_graphite=true skia_use_system_expat=false skia_use_system_icu=false skia_use_system_libjpeg_turbo=false skia_use_system_libpng=false skia_use_system_libwebp=false skia_use_system_zlib=false skia_use_freetype=true skia_use_harfbuzz=true skia_pdf_subset_harfbuzz=true skia_use_system_freetype2=false skia_use_system_harfbuzz=false target_cpu=\"${{ matrix.arch }}\" $gn_flags"
     - name: Compiling
       run: ninja -C out/${{ matrix.mode }}-${{ matrix.arch }} skia modules
     - name: Copying Files

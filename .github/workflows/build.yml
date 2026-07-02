@@ -8,10 +8,8 @@ jobs:
       matrix:
         os: [windows-2022, macos-latest, ubuntu-22.04]
         mode: [Release, Debug]
-        arch: [x64, x86, arm64]
+        arch: [x64, arm64]
         exclude:
-          - os: macos-latest
-            arch: x86
           - os: windows-2022
             arch: arm64
           - os: ubuntu-22.04

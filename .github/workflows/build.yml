@@ -75,6 +75,7 @@ jobs:
           sdk_ver=${WindowsSDKVersion%\\}
           export gn_flags="is_trivial_abi=false win_vc=\"$vc_dir\" win_toolchain_version=\"$VCToolsVersion\" win_sdk=\"$sdk_dir\" win_sdk_version=\"$sdk_ver\" cc=\"clang\" cxx=\"clang++\" clang_win=\"C:/Program Files/LLVM\""
           export skia_use_vulkan=true
+          export skia_use_dawn=true
           export dawn_enable_d3d11=true
           if [[ "${{ matrix.mode }}" == "Debug" ]] ; then
             export gn_flags="$gn_flags extra_cflags=[\"-MTd\"]"
@@ -83,6 +84,7 @@ jobs:
           fi
         elif [[ "${{ runner.os }}" == "macOS" ]] ; then
           export skia_use_vulkan=false
+          export skia_use_dawn=false
           export dawn_enable_d3d11=false
           if [[ "${{ matrix.arch }}" == arm64 ]] ; then
             export gn_flags='extra_cflags=["-stdlib=libc++", "-mmacosx-version-min=11.0"] extra_cflags_cc=["-frtti"]'
@@ -92,9 +94,10 @@ jobs:
         else
           export gn_flags='cc="clang-22" cxx="clang++-22"'
           skia_use_vulkan=true
+          skia_use_dawn=false
           dawn_enable_d3d11=false
         fi
-        gn gen out/${{ matrix.mode }}-${{ matrix.arch }} --args="is_debug=$is_debug is_official_build=$is_official skia_use_vulkan=$skia_use_vulkan  dawn_enable_d3d11=$dawn_enable_d3d11 skia_enable_ganesh=false skia_enable_graphite=true skia_use_dawn=true skia_use_system_expat=false skia_use_system_icu=false skia_use_libjpeg_turbo_decode=false skia_use_libjpeg_turbo_encode=false skia_use_system_libpng=false skia_use_libpng_decode=true skia_use_libpng_encode=false skia_use_libwebp_decode=false skia_use_libwebp_encode=false skia_use_system_zlib=false skia_use_freetype=true skia_use_harfbuzz=true skia_pdf_subset_harfbuzz=true skia_use_system_freetype2=false skia_use_system_harfbuzz=false target_cpu=\"${{ matrix.arch }}\" $gn_flags"
+        gn gen out/${{ matrix.mode }}-${{ matrix.arch }} --args="is_debug=$is_debug is_official_build=$is_official skia_use_vulkan=$skia_use_vulkan skia_enable_ganesh=false skia_enable_graphite=true skia_use_dawn=$skia_use_dawn dawn_enable_d3d11=$dawn_enable_d3d11 skia_use_system_expat=false skia_use_system_icu=false skia_use_libjpeg_turbo_decode=false skia_use_libjpeg_turbo_encode=false skia_use_system_libpng=false skia_use_libpng_decode=true skia_use_libpng_encode=false skia_use_libwebp_decode=false skia_use_libwebp_encode=false skia_use_system_zlib=false skia_use_freetype=true skia_use_harfbuzz=true skia_pdf_subset_harfbuzz=true skia_use_system_freetype2=false skia_use_system_harfbuzz=false target_cpu=\"${{ matrix.arch }}\" $gn_flags"
     - name: Compiling
       run: ninja -C out/${{ matrix.mode }}-${{ matrix.arch }} skia modules
     - name: Copying Files

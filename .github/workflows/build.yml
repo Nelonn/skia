@@ -51,6 +51,14 @@ jobs:
       uses: ilammy/msvc-dev-cmd@v1
       with:
         arch: x64
+    - name: Debug MSVC env
+      if: runner.os == 'Windows'
+      shell: bash
+      run: |
+        echo "VCToolsVersion=$VCToolsVersion"
+        echo "INCLUDE=$INCLUDE"
+        ls "$VCINSTALLDIR/Tools/MSVC"
+        echo "LDFLAGS=/INCREMENTAL:NO" >> "$GITHUB_ENV"
     - name: Sync Deps
       env:
         GIT_SYNC_DEPS_SKIP_EMSDK: true

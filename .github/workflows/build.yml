@@ -51,14 +51,6 @@ jobs:
       uses: ilammy/msvc-dev-cmd@v1
       with:
         arch: x64
-    - name: Debug MSVC env
-      if: runner.os == 'Windows'
-      shell: bash
-      run: |
-        echo "VCToolsVersion=$VCToolsVersion"
-        echo "INCLUDE=$INCLUDE"
-        ls "$VCINSTALLDIR/Tools/MSVC"
-        echo "LDFLAGS=/INCREMENTAL:NO" >> "$GITHUB_ENV"
     - name: Sync Deps
       env:
         GIT_SYNC_DEPS_SKIP_EMSDK: true
@@ -76,8 +68,14 @@ jobs:
           export is_official=true
         fi
         if [[ "${{ runner.os }}" == "Windows" ]] ; then
-          export gn_flags='is_trivial_abi=false win_vc="C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC" win_toolchain_version="17.9" win_sdk="C:\\Program Files\\Windows Kits\\10" win_sdk_version="10.0.22621.0" cc="clang" cxx="clang++" clang_win="C:\Program Files\LLVM"'
+          vc_dir=$(cygpath -m "$VCINSTALLDIR")
+          vc_dir=${vc_dir%/}
+          sdk_dir=$(cygpath -m "$WindowsSdkDir")
+          sdk_dir=${sdk_dir%/}
+          sdk_ver=${WindowsSDKVersion%\\}
+          export gn_flags="is_trivial_abi=false win_vc=\"$vc_dir\" win_toolchain_version=\"$VCToolsVersion\" win_sdk=\"$sdk_dir\" win_sdk_version=\"$sdk_ver\" cc=\"clang\" cxx=\"clang++\" clang_win=\"C:/Program Files/LLVM\""
           export skia_use_vulkan=true
+          export dawn_enable_d3d11=true
           if [[ "${{ matrix.mode }}" == "Debug" ]] ; then
             export gn_flags="$gn_flags extra_cflags=[\"-MTd\"]"
           else
@@ -85,6 +83,7 @@ jobs:
           fi
         elif [[ "${{ runner.os }}" == "macOS" ]] ; then
           export skia_use_vulkan=false
+          export dawn_enable_d3d11=false
           if [[ "${{ matrix.arch }}" == arm64 ]] ; then
             export gn_flags='extra_cflags=["-stdlib=libc++", "-mmacosx-version-min=11.0"] extra_cflags_cc=["-frtti"]'
           else
@@ -93,8 +92,9 @@ jobs:
         else
           export gn_flags='cc="clang-22" cxx="clang++-22"'
           skia_use_vulkan=true
+          dawn_enable_d3d11=false
         fi
-        gn gen out/${{ matrix.mode }}-${{ matrix.arch }} --args="is_debug=$is_debug is_official_build=$is_official skia_use_vulkan=$skia_use_vulkan skia_enable_ganesh=false skia_enable_graphite=true skia_use_dawn=true skia_use_system_expat=false skia_use_system_icu=false skia_use_libjpeg_turbo_decode=false skia_use_libjpeg_turbo_encode=false skia_use_system_libpng=false skia_use_libpng_decode=true skia_use_libpng_encode=false skia_use_libwebp_decode=false skia_use_libwebp_encode=false skia_use_system_zlib=false skia_use_freetype=true skia_use_harfbuzz=true skia_pdf_subset_harfbuzz=true skia_use_system_freetype2=false skia_use_system_harfbuzz=false target_cpu=\"${{ matrix.arch }}\" $gn_flags"
+        gn gen out/${{ matrix.mode }}-${{ matrix.arch }} --args="is_debug=$is_debug is_official_build=$is_official skia_use_vulkan=$skia_use_vulkan  dawn_enable_d3d11=$dawn_enable_d3d11 skia_enable_ganesh=false skia_enable_graphite=true skia_use_dawn=true skia_use_system_expat=false skia_use_system_icu=false skia_use_libjpeg_turbo_decode=false skia_use_libjpeg_turbo_encode=false skia_use_system_libpng=false skia_use_libpng_decode=true skia_use_libpng_encode=false skia_use_libwebp_decode=false skia_use_libwebp_encode=false skia_use_system_zlib=false skia_use_freetype=true skia_use_harfbuzz=true skia_pdf_subset_harfbuzz=true skia_use_system_freetype2=false skia_use_system_harfbuzz=false target_cpu=\"${{ matrix.arch }}\" $gn_flags"
     - name: Compiling
       run: ninja -C out/${{ matrix.mode }}-${{ matrix.arch }} skia modules
     - name: Copying Files

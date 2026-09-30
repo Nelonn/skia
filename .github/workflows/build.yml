@@ -27,11 +27,15 @@ jobs:
         else
           sudo apt-get update -qq
           sudo apt-get install -y \
-            git g++ g++-multilib clang-15 pandoc dpkg-dev \
-            libcurl4-openssl-dev libgif-dev libjpeg-dev \
-            libz-dev libpng-dev libtinyxml-dev libpixman-1-dev \
+            git g++ g++-multilib pandoc dpkg-dev \
+            libcurl4-openssl-dev libgif-dev \
+            libz-dev libtinyxml-dev libpixman-1-dev \
             libx11-dev libxcursor-dev ninja-build zip unzip \
-            libfontconfig-dev libgl1-mesa-dev
+            libfontconfig-dev libgl1-mesa-dev cmake \
+            wget lsb-release software-properties-common gnupg
+          wget https://apt.llvm.org/llvm.sh
+          chmod +x llvm.sh
+          sudo ./llvm.sh 22
         fi
     - name: Download depot_tools
       shell: bash
@@ -75,10 +79,10 @@ jobs:
             export gn_flags='extra_cflags=["-stdlib=libc++", "-mmacosx-version-min=10.9"] extra_cflags_cc=["-frtti"]'
           fi
         else
-          export gn_flags='cc="clang-15" cxx="clang++-15"'
+          export gn_flags='cc="clang-22" cxx="clang++-22"'
           skia_use_vulkan=true
         fi
-        gn gen out/${{ matrix.mode }}-${{ matrix.arch }} --args="is_debug=$is_debug is_official_build=$is_official skia_use_vulkan=$skia_use_vulkan skia_enable_ganesh=false skia_enable_graphite=true skia_use_system_expat=false skia_use_system_icu=false skia_use_system_libjpeg_turbo=false skia_use_system_libpng=false skia_use_system_libwebp=false skia_use_system_zlib=false skia_use_freetype=true skia_use_harfbuzz=true skia_pdf_subset_harfbuzz=true skia_use_system_freetype2=false skia_use_system_harfbuzz=false target_cpu=\"${{ matrix.arch }}\" $gn_flags"
+        gn gen out/${{ matrix.mode }}-${{ matrix.arch }} --args="is_debug=$is_debug is_official_build=$is_official skia_use_vulkan=$skia_use_vulkan skia_enable_ganesh=false skia_enable_graphite=true skia_use_dawn=true skia_use_system_expat=false skia_use_system_icu=false skia_use_libjpeg_turbo_decode=false skia_use_libjpeg_turbo_encode=false skia_use_libpng_decode=false skia_use_libpng_encode=false skia_use_libwebp_decode=false skia_use_libwebp_encode=false skia_use_system_zlib=false skia_use_freetype=true skia_use_harfbuzz=true skia_pdf_subset_harfbuzz=true skia_use_system_freetype2=false skia_use_system_harfbuzz=false target_cpu=\"${{ matrix.arch }}\" $gn_flags"
     - name: Compiling
       run: ninja -C out/${{ matrix.mode }}-${{ matrix.arch }} skia modules
     - name: Copying Files
@@ -175,6 +179,8 @@ jobs:
           src/xps/*.h \
           third_party/externals/angle2/LICENSE \
           third_party/externals/angle2/include \
+          third_party/externals/dawn/include \
+          third_party/externals/webgpu-headers \
           third_party/externals/freetype/LICENSE.TXT \
           third_party/externals/freetype/docs/FTL.TXT \
           third_party/externals/freetype/docs/GPLv2.TXT \
@@ -183,22 +189,6 @@ jobs:
           third_party/externals/harfbuzz/src/*.h \
           third_party/externals/icu/LICENSE \
           third_party/externals/icu/flutter/icudtl.dat \
-          third_party/externals/libjpeg-turbo/LICENSE.md \
-          third_party/externals/libjpeg-turbo/src/jconfig.h \
-          third_party/externals/libjpeg-turbo/src/jerror.h \
-          third_party/externals/libjpeg-turbo/src/jmorecfg.h \
-          third_party/externals/libjpeg-turbo/src/jpeglib.h \
-          third_party/externals/libjpeg-turbo/src/turbojpeg.h \
-          third_party/externals/libpng/*.h \
-          third_party/externals/libpng/LICENSE \
-          third_party/externals/libwebp/COPYING \
-          third_party/externals/libwebp/PATENTS \
-          third_party/externals/libwebp/src/dec/*.h \
-          third_party/externals/libwebp/src/dsp/*.h \
-          third_party/externals/libwebp/src/enc/*.h \
-          third_party/externals/libwebp/src/mux/*.h \
-          third_party/externals/libwebp/src/utils/*.h \
-          third_party/externals/libwebp/src/webp/*.h \
           third_party/externals/swiftshader/LICENSE.txt \
           third_party/externals/swiftshader/include \
           third_party/externals/zlib/*.h \

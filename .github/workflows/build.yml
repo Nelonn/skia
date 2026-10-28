@@ -31,7 +31,7 @@ jobs:
             libcurl4-openssl-dev libgif-dev \
             libz-dev libtinyxml-dev libpixman-1-dev \
             libx11-dev libxcursor-dev ninja-build zip unzip \
-            libfontconfig-dev libgl1-mesa-dev cmake \
+            libgl1-mesa-dev cmake \
             wget lsb-release software-properties-common gnupg
           wget https://apt.llvm.org/llvm.sh
           chmod +x llvm.sh
@@ -91,13 +91,14 @@ jobs:
           else
             export gn_flags='extra_cflags=["-stdlib=libc++", "-mmacosx-version-min=10.9"] extra_cflags_cc=["-frtti"]'
           fi
+          export gn_flags="$gn_flags skia_use_metal=true"
         else
           export gn_flags='cc="clang-22" cxx="clang++-22"'
           skia_use_vulkan=true
           skia_use_dawn=false
           dawn_enable_d3d11=false
         fi
-        gn gen out/${{ matrix.mode }}-${{ matrix.arch }} --args="is_debug=$is_debug is_official_build=$is_official skia_use_vulkan=$skia_use_vulkan skia_enable_ganesh=false skia_enable_graphite=true skia_use_dawn=$skia_use_dawn dawn_enable_d3d11=$dawn_enable_d3d11 skia_use_system_expat=false skia_use_system_icu=false skia_use_libjpeg_turbo_decode=false skia_use_libjpeg_turbo_encode=false skia_use_system_libpng=false skia_use_libpng_decode=true skia_use_libpng_encode=false skia_use_libwebp_decode=false skia_use_libwebp_encode=false skia_use_system_zlib=false skia_use_freetype=true skia_use_harfbuzz=true skia_pdf_subset_harfbuzz=true skia_use_system_freetype2=false skia_use_system_harfbuzz=false target_cpu=\"${{ matrix.arch }}\" $gn_flags"
+        gn gen out/${{ matrix.mode }}-${{ matrix.arch }} --args="is_debug=$is_debug is_official_build=$is_official skia_use_vulkan=$skia_use_vulkan skia_enable_ganesh=false skia_enable_graphite=true skia_use_dawn=$skia_use_dawn dawn_enable_d3d11=$dawn_enable_d3d11 skia_use_fontconfig=false skia_enable_fontmgr_win=false skia_use_fonthost_mac=false skia_use_system_expat=false skia_use_system_icu=false skia_use_libjpeg_turbo_decode=false skia_use_libjpeg_turbo_encode=false skia_use_system_libpng=false skia_use_libpng_decode=true skia_use_libpng_encode=false skia_use_libwebp_decode=false skia_use_libwebp_encode=false skia_use_system_zlib=false skia_use_freetype=true skia_use_harfbuzz=true skia_pdf_subset_harfbuzz=true skia_use_system_freetype2=false skia_use_system_harfbuzz=false target_cpu=\"${{ matrix.arch }}\" $gn_flags"
     - name: Compiling
       run: ninja -C out/${{ matrix.mode }}-${{ matrix.arch }} skia modules
     - name: Copying Files

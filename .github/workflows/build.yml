@@ -48,15 +48,10 @@ jobs:
             libx11-dev libxcursor-dev ninja-build zip unzip \
             libfontconfig-dev libgl1-mesa-dev
         fi
-    - name: Download depot_tools
-      env:
-        ACTIONS_ALLOW_UNSECURE_COMMANDS: true
-      run: |
-        git clone 'https://chromium.googlesource.com/chromium/tools/depot_tools.git'
-        echo "::add-path::${PWD}/depot_tools"
     - name: Sync Deps
       env:
         GIT_SYNC_DEPS_SKIP_EMSDK: true
+      # Also fetches bin/gn via bin/fetch-gn; depot_tools is not needed.
       run: python3 tools/git-sync-deps
     - name: Fetch Ninja
       run: python3 bin/fetch-ninja
@@ -125,9 +120,10 @@ jobs:
         else
           export gn_flags='cc="clang-12" cxx="clang++-12"'
         fi
-        gn gen out/${{ matrix.mode }}-${{ matrix.arch }} --args="is_debug=$is_debug is_official_build=$is_official skia_use_system_expat=false skia_use_system_icu=false skia_use_system_libjpeg_turbo=false skia_use_system_libpng=false skia_use_system_libwebp=false skia_use_system_zlib=false skia_use_freetype=true skia_use_harfbuzz=true skia_pdf_subset_harfbuzz=true skia_use_system_freetype2=false skia_use_system_harfbuzz=false target_cpu=\"${{ matrix.arch }}\" $gn_flags"
+        bin/gn gen out/${{ matrix.mode }}-${{ matrix.arch }} --args="is_debug=$is_debug is_official_build=$is_official skia_use_system_expat=false skia_use_system_icu=false skia_use_system_libjpeg_turbo=false skia_use_system_libpng=false skia_use_system_libwebp=false skia_use_system_zlib=false skia_use_freetype=true skia_use_harfbuzz=true skia_pdf_subset_harfbuzz=true skia_use_system_freetype2=false skia_use_system_harfbuzz=false target_cpu=\"${{ matrix.arch }}\" $gn_flags"
     - name: Compiling
-      run: ninja -C out/${{ matrix.mode }}-${{ matrix.arch }} skia modules
+      shell: bash
+      run: third_party/ninja/ninja -C out/${{ matrix.mode }}-${{ matrix.arch }} skia modules
     - name: Copying Files
       shell: bash
       run: |

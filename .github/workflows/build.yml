@@ -1,5 +1,18 @@
 name: Build
 on: push
+env:
+  # Pinned Windows toolchain. Must match the local developer machine so the
+  # produced .lib files use exactly the same MSVC STL / CRT.
+  # To bump: take the "Fixed-version bootstrapper" vs_BuildTools.exe URL for the
+  # wanted VS release from
+  # https://learn.microsoft.com/visualstudio/releases/2026/release-history
+  # and update all versions below together.
+  VS_VERSION: "18.11.3"                # VS 2026 18.11.3 (build 18.11.12328.437)
+  VS_BUILDTOOLS_URL: "https://download.visualstudio.microsoft.com/download/pr/5f474104-723f-4007-bf4c-92e42a23dcc6/ea54b67bfac576b6dd097f84eeaf6893780d2a613f90448ff038e8a2777a0afb/vs_BuildTools.exe"
+  VS_INSTALL_PATH: "C:/BuildTools"
+  MSVC_VERSION: "14.51.36231"          # VC/Tools/MSVC/<this>, _MSVC_STL_UPDATE 202604
+  WINSDK_VERSION: "10.0.28000.0"
+  LLVM_VERSION: "23.1.4"               # MSVC STL 14.51 requires clang >= 20
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -46,11 +59,39 @@ jobs:
       run: python3 tools/git-sync-deps
     - name: Fetch Ninja
       run: python3 bin/fetch-ninja
-    - name: Install LLVM and Clang 18
+    - name: Install pinned MSVC (VS Build Tools)
       if: runner.os == 'Windows'
-      uses: KyleMayes/install-llvm-action@v2
-      with:
-        version: "18.1"
+      shell: pwsh
+      run: |
+        $sdkBuild = $env:WINSDK_VERSION.Split('.')[2]
+        $bt = Join-Path $env:RUNNER_TEMP 'vs_BuildTools.exe'
+        Invoke-WebRequest $env:VS_BUILDTOOLS_URL -OutFile $bt
+        $p = Start-Process $bt -Wait -PassThru -ArgumentList @(
+          '--quiet', '--wait', '--norestart', '--nocache',
+          '--installPath', $env:VS_INSTALL_PATH,
+          '--add', 'Microsoft.VisualStudio.Component.VC.Tools.x86.x64',
+          '--add', "Microsoft.VisualStudio.Component.Windows11SDK.$sdkBuild")
+        if ($p.ExitCode -ne 0 -and $p.ExitCode -ne 3010) { throw "vs_BuildTools failed: $($p.ExitCode)" }
+        $vc = "$env:VS_INSTALL_PATH/VC/Tools/MSVC/$env:MSVC_VERSION"
+        if (!(Test-Path "$vc/include/yvals_core.h")) {
+          Get-ChildItem "$env:VS_INSTALL_PATH/VC/Tools/MSVC" -ErrorAction SilentlyContinue
+          throw "MSVC $env:MSVC_VERSION not found in $env:VS_INSTALL_PATH"
+        }
+        if (!(Test-Path "C:/Program Files (x86)/Windows Kits/10/Include/$env:WINSDK_VERSION/ucrt")) {
+          throw "Windows SDK $env:WINSDK_VERSION not found"
+        }
+        Select-String -Path "$vc/include/yvals_core.h" -Pattern '_MSVC_STL_(VERSION|UPDATE) '
+        # clang-cl autodetects the STL from this variable; keep it on the pinned one too.
+        "VCToolsInstallDir=$vc/" | Out-File -Append -Encoding utf8 $env:GITHUB_ENV
+    - name: Install pinned LLVM
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        choco install llvm --version=$env:LLVM_VERSION --allow-downgrade -y --no-progress
+        if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+        $v = & 'C:/Program Files/LLVM/bin/clang-cl.exe' --version | Select-Object -First 1
+        Write-Host $v
+        if ($v -notmatch [regex]::Escape("clang version $env:LLVM_VERSION")) { throw "Unexpected clang: $v" }
     - name: Generating Ninja Files
       shell: bash
       run: |
@@ -62,8 +103,8 @@ jobs:
           export is_official=true
         fi
         if [[ "${{ runner.os }}" == "Windows" ]] ; then
-          clang++ --version
-          export gn_flags='is_trivial_abi=false win_vc="C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC" win_toolchain_version="17.10" win_sdk="C:\\Program Files\\Windows Kits\\10" win_sdk_version="10.0.22621.0" cc="clang" cxx="clang++" clang_win="C:\Program Files\LLVM" clang_win_version="18.1"'
+          "C:/Program Files/LLVM/bin/clang-cl.exe" --version
+          export gn_flags="is_trivial_abi=false win_vc=\"$VS_INSTALL_PATH/VC\" win_toolchain_version=\"$MSVC_VERSION\" win_sdk=\"C:/Program Files (x86)/Windows Kits/10\" win_sdk_version=\"$WINSDK_VERSION\" cc=\"clang\" cxx=\"clang++\" clang_win=\"C:/Program Files/LLVM\" clang_win_version=\"${LLVM_VERSION%%.*}\""
           if [[ "${{ matrix.mode }}" == "Debug" ]] ; then
             export gn_flags="$gn_flags extra_cflags=[\"-MTd\"]"
           else

@@ -13,6 +13,7 @@ env:
   MSVC_VERSION: "14.51.36231"          # VC/Tools/MSVC/<this>, _MSVC_STL_UPDATE 202604
   WINSDK_VERSION: "10.0.28000.0"
   LLVM_VERSION: "23.1.4"               # MSVC STL 14.51 requires clang >= 20
+  LLVM_PATH: "C:/LLVM-pinned"
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -87,9 +88,14 @@ jobs:
       if: runner.os == 'Windows'
       shell: pwsh
       run: |
-        choco install llvm --version=$env:LLVM_VERSION --allow-downgrade -y --no-progress
+        # Official release archive; extracted next to (not over) the runner's own LLVM.
+        $name = "clang+llvm-$env:LLVM_VERSION-x86_64-pc-windows-msvc"
+        $archive = Join-Path $env:RUNNER_TEMP "$name.tar.xz"
+        Invoke-WebRequest "https://github.com/llvm/llvm-project/releases/download/llvmorg-$env:LLVM_VERSION/$name.tar.xz" -OutFile $archive
+        New-Item -ItemType Directory -Force $env:LLVM_PATH | Out-Null
+        tar -xf $archive -C $env:LLVM_PATH --strip-components=1
         if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-        $v = & 'C:/Program Files/LLVM/bin/clang-cl.exe' --version | Select-Object -First 1
+        $v = & "$env:LLVM_PATH/bin/clang-cl.exe" --version | Select-Object -First 1
         Write-Host $v
         if ($v -notmatch [regex]::Escape("clang version $env:LLVM_VERSION")) { throw "Unexpected clang: $v" }
     - name: Generating Ninja Files
@@ -103,8 +109,8 @@ jobs:
           export is_official=true
         fi
         if [[ "${{ runner.os }}" == "Windows" ]] ; then
-          "C:/Program Files/LLVM/bin/clang-cl.exe" --version
-          export gn_flags="is_trivial_abi=false win_vc=\"$VS_INSTALL_PATH/VC\" win_toolchain_version=\"$MSVC_VERSION\" win_sdk=\"C:/Program Files (x86)/Windows Kits/10\" win_sdk_version=\"$WINSDK_VERSION\" cc=\"clang\" cxx=\"clang++\" clang_win=\"C:/Program Files/LLVM\" clang_win_version=\"${LLVM_VERSION%%.*}\""
+          "$LLVM_PATH/bin/clang-cl.exe" --version
+          export gn_flags="is_trivial_abi=false win_vc=\"$VS_INSTALL_PATH/VC\" win_toolchain_version=\"$MSVC_VERSION\" win_sdk=\"C:/Program Files (x86)/Windows Kits/10\" win_sdk_version=\"$WINSDK_VERSION\" cc=\"clang\" cxx=\"clang++\" clang_win=\"$LLVM_PATH\" clang_win_version=\"${LLVM_VERSION%%.*}\""
           if [[ "${{ matrix.mode }}" == "Debug" ]] ; then
             export gn_flags="$gn_flags extra_cflags=[\"-MTd\"]"
           else
